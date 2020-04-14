@@ -5,6 +5,47 @@ from pygame.locals import *
 from random import choice
 pygame.init()
 
+# ---------- Users & Scores ----------
+""" 
+    This section allows me to :
+        Prompt for a user name
+        Display his best score
+        Save his score if he beats his current best score
+"""
+
+scores_file = "scores"
+
+def get_scores():    
+    if os.path.exists(scores_file): 
+        file_scores = open(scores_file, "rb")
+        my_depickler = pickle.Unpickler(file_scores)
+        scores = my_depickler.load()
+        file_scores.close()
+    else: 
+        scores = {}
+    return scores
+
+def save_scores(scores):
+    file_scores = open(scores_file, "wb")
+    my_pickler = pickle.Pickler(file_scores)
+    my_pickler.dump(scores)
+    file_scores.close()
+
+def get_user():
+    my_user = input("Write your Name: ")
+    my_user = my_user.capitalize()
+    if not my_user.isalnum() or len(my_user)<4:
+        print("This name is invalid.")
+        return get_user()
+    else:
+        return my_user
+
+scores = get_scores()
+utilisateur = get_user()
+
+if utilisateur not in scores.keys():
+    scores[utilisateur] = 0 
+
 # ---------- Settings ----------
 
 SCREEN_WIDTH  = 1920
@@ -18,6 +59,7 @@ clock = pygame.time.Clock()
 pause = False
 over = False
 myFont = pygame.font.SysFont("monospace", 25 , bold = True)
+last_score = 0
 
 # ---------- Resources (Images & Sounds) ----------
 
@@ -273,6 +315,13 @@ def game_intro():
         button("Go !",700,700,100,50,GREEN,LIGHT_GREEN,main)
         button("Quit",1200,700,100,50,RED,LIGHT_RED,quit_game)
 
+        # Show the user best score
+        print_score = myFont.render("Your best score : {0}".format(round(scores[utilisateur])), 1, WHITE)
+        screen.blit(print_score, (10, 50))
+
+        print_user = myFont.render("Current Player : " + utilisateur, 1, WHITE)
+        screen.blit(print_user, (10, 10))
+
         print_myself = myFont.render("A game developed by : Nathan PRATS", 1, WHITE)
         screen.blit(print_myself, (10, 1050))
 
@@ -319,6 +368,7 @@ def quit_game():
 def main():
 
     global pause
+    global last_score
 
     # Settings
     screen_rect = screen.get_rect()
@@ -463,6 +513,11 @@ def main():
         # Game Over condition
         if lifes < 0:
             pygame.mixer.Sound.play(Halo3Deaths1)
+            if score > scores[utilisateur]: # Populate best score
+                scores[utilisateur] = score
+            last_score = score
+            save_scores(scores)
+            game_over = True
             you_lose()
             
         next_level = 25
@@ -482,7 +537,7 @@ def main():
 
         print_next_level = myFont.render("Next Level:" + str(round(next_level)), 1, BLACK)
         screen.blit(print_next_level, (place_text, 90))
-
+        
         pygame.display.update()
         clock.tick(FPS)
             
@@ -507,6 +562,17 @@ def you_lose():
         button("Retry !",1200,y,100,50,GREEN,LIGHT_GREEN,main)
         button("Menu",1350,y,100,50,BLUE,LIGHT_GREEN,game_intro)
         button("Quit",1500,y,100,50,RED,LIGHT_RED,quit_game)
+
+        # Show the user best score
+        
+        print_score = myFont.render("Your best score : {0}".format(round(scores[utilisateur])), 1, WHITE)
+        screen.blit(print_score, (10, 50))
+
+        print_user = myFont.render("Current Player : " + utilisateur, 1, WHITE)
+        screen.blit(print_user, (10, 10))
+
+        print_last_score = myFont.render("You scored : " + str(round(last_score)), 1, WHITE)
+        screen.blit(print_last_score, (10, 90))
 
         print_myself = myFont.render("A game developed by : Nathan PRATS", 1, WHITE)
         screen.blit(print_myself, (10, 1050))
