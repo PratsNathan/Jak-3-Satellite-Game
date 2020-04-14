@@ -10,12 +10,14 @@ pygame.init()
 SCREEN_WIDTH  = 1920
 SCREEN_HEIGHT = 1080
 FPS = 60
+SPEED = 2
 CIRCLE_RADIUS = 70
 ENEMY_SIZE = 40
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.FULLSCREEN)
 clock = pygame.time.Clock()
+pause = False
+over = False
 myFont = pygame.font.SysFont("monospace", 25 , bold = True)
-SPEED = 2
 
 # ---------- Resources (Images & Sounds) ----------
 
@@ -23,6 +25,16 @@ if getattr(sys, 'frozen', False):
     current_path = os.path.dirname(sys.executable)
 else:
     current_path = os.path.dirname(os.path.realpath(__file__))
+
+# Background Images
+background_image_Start = pygame.image.load(os.path.join(current_path,"Start.jpg")).convert()
+background_image_Pause =  pygame.image.load(os.path.join(current_path,"Pause.jpg")).convert()
+background_image_Game_Over = pygame.image.load(os.path.join(current_path,"Over.jpg")).convert()
+background_image_In_Game =  pygame.image.load(os.path.join(current_path,"InGame.png")).convert()
+
+# Sounds
+Re5HealingSoundEffect = pygame.mixer.Sound('Re5HealingSoundEffect.wav')
+Halo3Deaths1 = pygame.mixer.Sound('Halo3Deaths1.wav')
 
 # PS2 images
 button_circle_red_tiny = pygame.image.load('button_circle_red_tiny.png').convert()
@@ -104,6 +116,15 @@ class Enemies:
             self.position= "right"
         self.calcDirection()
 
+    def set_speed( self, difficulty):
+        if   difficulty == 1 : self.speed = 2
+        elif difficulty == 2 : self.speed = 2.25
+        elif difficulty == 3 : self.speed = 2.5
+        elif difficulty == 4 : self.speed = 2.75
+        elif difficulty == 5 : self.speed = 3
+        elif difficulty == 6 : self.speed = 3.25
+        return self.speed
+
 class Circle:
 
     def __init__(self, x, y, radius=CIRCLE_RADIUS, thick=7, color=BLACK, speed=SPEED, position="top"):
@@ -172,21 +193,150 @@ class Circle:
         else:
             return False
 
+# ---------- Other Functions ----------
+
+""" Difficulty sets 4 variables :
+        enemy speed (in enemy class)
+        interval between enemy drops 
+        maximum number of enemies drop in a row from the same lane 
+        simultaneity (drops at the same time from different lanes)"""
+
+def set_difficulty(score):  
+    if   score < 25 : difficulty = 1
+    elif score < 50 : difficulty = 2
+    elif score < 100: difficulty = 3
+    elif score < 250: difficulty = 4
+    elif score < 500: difficulty = 5
+    else:             difficulty = 6
+
+    return difficulty
+
+def set_interval(difficulty):
+    if   difficulty == 1 : interval = 400
+    elif difficulty == 2 : interval = 250
+    elif difficulty == 3 : interval = 200
+    elif difficulty == 4 : interval = 150
+    elif difficulty == 5 : interval = 100
+    elif difficulty == 6 : interval = 75
+
+    return interval
+
+def set_simultaneity(difficulty):
+    if   difficulty == 1 : simultaneity = 3
+    elif difficulty == 2 : simultaneity = 4
+    elif difficulty == 3 : simultaneity = 5
+    else                 : simultaneity = 6
+
+    return simultaneity
+
+# ---------- Welcome screen / Pause / Game Over ----------
+
+def text_objects(text, font):
+    textSurface = font.render(text, True, WHITE)
+    return textSurface, textSurface.get_rect()
+
+def button(msg,x,y,w,h,ic,ac,action=None):
+    mouse = pygame.mouse.get_pos()
+    click = pygame.mouse.get_pressed()
+    if x+w > mouse[0] > x and y+h > mouse[1] > y:
+        pygame.draw.rect(screen, ac,(x,y,w,h))
+
+        if click[0] == 1 and action != None:
+            action()         
+    else:
+        pygame.draw.rect(screen, ic,(x,y,w,h))
+
+    smallText = pygame.font.SysFont("comicsansms",20)
+    textSurf, textRect = text_objects(msg, smallText)
+    textRect.center = ( (x+(w/2)), (y+(h/2)) )
+    screen.blit(textSurf, textRect)
+
+def game_intro():
+
+    intro = True
+    
+    # Music
+    pygame.mixer.music.load('in_game.ogg')
+    pygame.mixer.music.play()
+
+    over == False
+
+    while intro:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                quit()
+            
+
+        screen.blit(background_image_Start, [0, 0])
+
+        button("Go !",700,700,100,50,GREEN,LIGHT_GREEN,main)
+        button("Quit",1200,700,100,50,RED,LIGHT_RED,quit_game)
+
+        print_myself = myFont.render("A game developed by : Nathan PRATS", 1, WHITE)
+        screen.blit(print_myself, (10, 1050))
+
+        pygame.display.update()
+        clock.tick(15)
+
+def unpause():
+    global pause
+    pygame.mixer.music.unpause()
+    pause = False
+
+def paused():
+
+    pygame.mixer.music.pause()
+    screen.blit(background_image_Pause, [0, 0])
+    largeText = pygame.font.SysFont("comicsansms",50)
+    TextSurf, TextRect = text_objects("Paused", largeText)
+    TextRect.center = (380,200)
+    screen.blit(TextSurf, TextRect)
+
+    while pause:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+            
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_p: 
+                    unpause()
+
+                if event.key == pygame.K_a:
+                    pygame.quit()
+                        
+        button("Continue",150,300,100,50,GREEN,LIGHT_GREEN,unpause)
+        button("Quit",500,300,100,50,RED,LIGHT_RED,quit_game)
+
+        pygame.display.update()
+        clock.tick(15) 
+
+def quit_game():
+    pygame.quit()
+
 # ---------- Main ----------
 
 def main():
+
+    global pause
 
     # Settings
     screen_rect = screen.get_rect()
     game_over = False
     score = 0
     lifes = 5
-    interval = 400
-    simultaneity = 4
+    difficulty = set_difficulty(score)
+    interval = set_interval(difficulty)
     pygame.time.set_timer(USEREVENT+1, interval)
 
     # We create an empty list of enemies, as we want them to drop randomly
     all_enemies = []
+
+    # Music
+    music_end = pygame.USEREVENT+2
+    pygame.mixer.music.set_endevent(music_end)
+    pygame.mixer.music.load('in_game.ogg')
+    pygame.mixer.music.play()
 
     # Start with 4 circles
     all_circles = [
@@ -197,11 +347,12 @@ def main():
 
     while not game_over:
 
-        screen.fill(WHITE)
+        screen.blit(background_image_In_Game, [0, 0]) 
 
         # Variables
-        interval = 400
-        simultaneity = 4
+        difficulty = set_difficulty(score)
+        interval = set_interval(difficulty)
+        simultaneity = set_simultaneity(difficulty)
 
         # Circles
         for c in all_circles:
@@ -211,6 +362,7 @@ def main():
         # Enemies
         for e in all_enemies:
             e.draw(screen)          # Place enemies on the screen
+            e.set_speed(difficulty) # Set speed difficulty for enemies
             e.update()              # Move enemies from the edges of the screen towards the center
 
             if ( e.reachedPoint( SCREEN_WIDTH//2, SCREEN_HEIGHT//2 ) ): # If the enemy reaches the middle, you lose a lifepoint and a new enemy is generated
@@ -220,9 +372,23 @@ def main():
         # Scoring and lifepoints systems
         for event in pygame.event.get():
 
+            # Music 
+            if event.type == music_end:
+                pygame.mixer.music.load('Halo3OneFinalEffort.mp3')
+                pygame.mixer.music.play()
+
+            # Allow Pause and Quit
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_p:
+                    pause = True
+                    paused()
+                if event.key == pygame.K_a:
+                    quit_game()
+
             # Cheats
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_g: 
+                    pygame.mixer.Sound.play(Re5HealingSoundEffect)
                     lifes += 5
                 if event.key == pygame.K_t: 
                     score -= 100
@@ -296,9 +462,17 @@ def main():
 
         # Game Over condition
         if lifes < 0:
-            game_over = True
-                    
-        # Score / Lifes 
+            pygame.mixer.Sound.play(Halo3Deaths1)
+            you_lose()
+            
+        next_level = 25
+        if difficulty == 2 : next_level = 50
+        elif difficulty == 3 : next_level = 100
+        elif difficulty == 4 : next_level = 250
+        elif difficulty == 5 : next_level = 500
+        elif difficulty == 6 : next_level = 1000
+        
+        # Score / Lifes / Number of Enemies / Next Level
         place_text = SCREEN_WIDTH-250
         print_lifes = myFont.render("Lifes:" + str(round(lifes)), 1, BLACK)
         screen.blit(print_lifes, (place_text, 10))
@@ -306,7 +480,38 @@ def main():
         print_score = myFont.render("Score:" + str(round(score)), 1, BLACK)
         screen.blit(print_score, (place_text, 50))
 
+        print_next_level = myFont.render("Next Level:" + str(round(next_level)), 1, BLACK)
+        screen.blit(print_next_level, (place_text, 90))
+
         pygame.display.update()
         clock.tick(FPS)
             
-main()
+    
+def you_lose():
+
+    global over
+    over = True
+
+    pygame.mixer.music.load(os.path.join(current_path,"Re5DreamyLoops.mp3"))
+    pygame.mixer.music.play(-1)
+
+    while over:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                quit()
+
+        screen.blit(background_image_Game_Over, [0, 0])
+
+        y = SCREEN_HEIGHT-100
+        button("Retry !",1200,y,100,50,GREEN,LIGHT_GREEN,main)
+        button("Menu",1350,y,100,50,BLUE,LIGHT_GREEN,game_intro)
+        button("Quit",1500,y,100,50,RED,LIGHT_RED,quit_game)
+
+        print_myself = myFont.render("A game developed by : Nathan PRATS", 1, WHITE)
+        screen.blit(print_myself, (10, 1050))
+
+        pygame.display.update()
+        clock.tick(15)
+
+game_intro()
