@@ -14,6 +14,7 @@ CIRCLE_RADIUS = 70
 ENEMY_SIZE = 40
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.FULLSCREEN)
 clock = pygame.time.Clock()
+myFont = pygame.font.SysFont("monospace", 25 , bold = True)
 SPEED = 2
 
 # ---------- Resources (Images & Sounds) ----------
@@ -30,8 +31,14 @@ button_triangle_green_tiny = pygame.image.load('button_triangle_green_tiny.png')
 button_cross_blue_tiny = pygame.image.load('button_cross_blue_tiny.png').convert()
 
 # ---------- Resources (Colors) ----------
+RED    = (255,000,000)
+BLUE   = (000,000,255)
+YELLOW = (255,255,000)
+GREEN  = (000,128,000)
 BLACK  = (000,000,000)
 WHITE  = (255,255,255)
+LIGHT_GREEN = (144,238,144)
+LIGHT_RED = (255,0,128)
 
 # ---------- Classes ----------
 class Enemies:
@@ -157,6 +164,13 @@ class Circle:
             elif self.rect.right >= SCREEN_WIDTH - 420 and self.directionX == 'left':
                 self.directionX = 'right'
                 self.speed = -self.speed
+    
+    def isCollision(self, enemyX, enemyY, circleX, circleY):
+        distance = math.sqrt((math.pow(enemyX-circleX,2))+(math.pow(enemyY-circleY,2)))
+        if distance < (CIRCLE_RADIUS+ENEMY_SIZE//2): 
+            return True
+        else:
+            return False
 
 # ---------- Main ----------
 
@@ -165,11 +179,13 @@ def main():
     # Settings
     screen_rect = screen.get_rect()
     game_over = False
+    score = 0
+    lifes = 5
     interval = 400
     simultaneity = 4
     pygame.time.set_timer(USEREVENT+1, interval)
 
-   # We create an empty list of enemies, as we want them to drop randomly
+    # We create an empty list of enemies, as we want them to drop randomly
     all_enemies = []
 
     # Start with 4 circles
@@ -183,6 +199,10 @@ def main():
 
         screen.fill(WHITE)
 
+        # Variables
+        interval = 400
+        simultaneity = 4
+
         # Circles
         for c in all_circles:
             c.draw(screen)     # Place circles on the screen
@@ -194,18 +214,98 @@ def main():
             e.update()              # Move enemies from the edges of the screen towards the center
 
             if ( e.reachedPoint( SCREEN_WIDTH//2, SCREEN_HEIGHT//2 ) ): # If the enemy reaches the middle, you lose a lifepoint and a new enemy is generated
+                lifes -=1
                 all_enemies.remove(e)
-        
+
         # Scoring and lifepoints systems
         for event in pygame.event.get():
-            
+
+            # Cheats
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_g: 
+                    lifes += 5
+                if event.key == pygame.K_t: 
+                    score -= 100
+
             if event.type == USEREVENT+1 and len(all_enemies) < simultaneity:
                 
-                all_enemies.append(Enemies(int(SCREEN_WIDTH/2), 0, color = BLACK, position = "top"))
+                all_enemies.append(Enemies(int(SCREEN_WIDTH/2), 0, color = YELLOW, position = "top"))
                 appended_enemies = [e for e in all_enemies if e.y_float == 0] # Create a filtered list with all enemies at top
                 for e in appended_enemies:
                     e.randomise()
-       
+        
+            for c in all_circles:
+
+                if event.type == pygame.KEYDOWN:
+
+                    # LEFT
+                    if event.key == pygame.K_LEFT and c.position == "left":
+                        hits = [e for e in all_enemies if c.isCollision(e.rect.centerx,e.rect.centery,c.rect.centerx,c.rect.centery)]
+                        if not hits:
+                            lifes -=1
+                        for e in hits:
+                            if len(hits) == 1: 
+                                score +=1
+                            if len(hits) == 2: 
+                                score +=5/len(hits)
+                            if len(hits) == 3: 
+                                score +=10/len(hits)
+                            all_enemies.remove(e)
+                    
+                    # RIGHT
+                    if event.key == pygame.K_RIGHT and c.position == "right":
+                        hits = [e for e in all_enemies if c.isCollision(e.rect.centerx,e.rect.centery,c.rect.centerx,c.rect.centery)]
+                        if not hits:
+                            lifes -=1
+                        for e in hits:
+                            if len(hits) == 1: 
+                                score +=1
+                            if len(hits) == 2: 
+                                score +=5/len(hits)
+                            if len(hits) == 3: 
+                                score +=10/len(hits)
+                            all_enemies.remove(e)
+                    
+                    # TOP
+                    if event.key == pygame.K_UP and c.position == "top":
+                        hits = [e for e in all_enemies if c.isCollision(e.rect.centerx,e.rect.centery,c.rect.centerx,c.rect.centery)]
+                        if not hits:
+                            lifes -=1
+                        for e in hits:
+                            if len(hits) == 1: 
+                                score +=1
+                            if len(hits) == 2: 
+                                score +=5/len(hits)
+                            if len(hits) == 3: 
+                                score +=10/len(hits)
+                            all_enemies.remove(e)
+                    
+                    # BOT
+                    if event.key == pygame.K_DOWN and c.position == "bot":
+                        hits = [e for e in all_enemies if c.isCollision(e.rect.centerx,e.rect.centery,c.rect.centerx,c.rect.centery)]
+                        if not hits:
+                            lifes -=1
+                        for e in hits:
+                            if len(hits) == 1: 
+                                score +=1
+                            if len(hits) == 2: 
+                                score +=5/len(hits)
+                            if len(hits) == 3: 
+                                score +=10/len(hits)
+                            all_enemies.remove(e)
+
+        # Game Over condition
+        if lifes < 0:
+            game_over = True
+                    
+        # Score / Lifes 
+        place_text = SCREEN_WIDTH-250
+        print_lifes = myFont.render("Lifes:" + str(round(lifes)), 1, BLACK)
+        screen.blit(print_lifes, (place_text, 10))
+
+        print_score = myFont.render("Score:" + str(round(score)), 1, BLACK)
+        screen.blit(print_score, (place_text, 50))
+
         pygame.display.update()
         clock.tick(FPS)
             
