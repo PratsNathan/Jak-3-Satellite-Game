@@ -1,0 +1,8 @@
+*.py linguist-language=Python
+*.mp3 linguist-language=Python
+*.wav linguist-language=Python
+*.ogg linguist-language=Python
+*.png linguist-language=Python
+*.pptm linguist-language=Python
+*.jpg linguist-language=Python
+*.ico linguist-language=Python
